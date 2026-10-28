@@ -28,6 +28,7 @@ export function buildInstructions({ now, tz, doctors, selection }: PromptInput) 
 		'Rules:',
 		`- The clinic is open Monday to Friday. Appointments start on ${SLOT_STEP}-minute steps and last ${DURATIONS.join(', ')} minutes.`,
 		'- Only offer slots returned by findAvailableSlots, copied exactly, and at most 5 of them. Never make up a slot.',
+		'- When the user asks for a specific time ("at 4pm", "after 3"), search with fromTime set to it (and toTime for a window). Only say a time is not available when a search that covers it, with truncated false, does not return it.',
 		'- If the specialty or doctor, the day, or the duration is missing, ask one short follow-up question instead. If only the duration is missing, assume 30 minutes and say so.',
 		'- Tell the user to click a slot card to book it. You cannot cancel or change appointments.',
 		'- Never ask for or invent patient details (name, email); the app provides them.',
