@@ -21,7 +21,8 @@ pnpm lint:fix       # biome check --write .
 pnpm typecheck
 pnpm test
 pnpm build
-docker compose up --build
+pnpm --filter backend db:generate   # SQL migration after editing backend/src/db/schema.ts
+docker compose up --build           # http://localhost:8080
 ```
 
 ## Conventions
@@ -35,5 +36,6 @@ docker compose up --build
 
 ## Docs
 
-The shared contract (decisions, domain, API, layout) is in [`docs/PLAN.md`](docs/PLAN.md). Implementation is split into
+User-facing overview, setup and env vars: [`README.md`](README.md). The shared contract (decisions, domain, API,
+layout) is in [`docs/PLAN.md`](docs/PLAN.md). Implementation is split into
 ordered specs in [`docs/specs/`](docs/specs).
