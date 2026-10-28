@@ -42,17 +42,29 @@ export function createTools({ db, config, now, patient, selection }: ToolsInput)
 		}),
 
 		findAvailableSlots: tool({
-			description: `Find free slots for one doctor on one day (at most ${SLOT_LIMIT}).`,
+			description: `Find free slots for one doctor on one day, earliest first. Returns at most ${SLOT_LIMIT}; when \`truncated\` is true, more free slots exist later in the window (\`totalFree\` counts them all), so search again with a later \`fromTime\` instead of assuming they are taken.`,
 			inputSchema: z.object({
 				doctorId: z.number().int(),
 				date: dateSchema.describe('YYYY-MM-DD'),
 				durationMinutes: z.number().int().describe('15, 30, 45 or 60'),
 				partOfDay: z.enum(['morning', 'afternoon']).optional(),
+				fromTime: timeSchema
+					.optional()
+					.describe('Earliest start, HH:mm clinic time. Set it when the user asks for a time'),
+				toTime: timeSchema.optional().describe('Latest start, HH:mm clinic time'),
 			}),
-			execute: async input => {
+			execute: async ({ fromTime, toTime, ...input }) => {
 				try {
-					const slots = findFreeSlots(db, { ...input, ...ctx, patientEmail: patient?.email });
-					return { ok: true as const, slots: toSlotOptions(slots.slice(0, SLOT_LIMIT), doctorsById()) };
+					// HH:mm strings compare correctly as text.
+					const slots = findFreeSlots(db, { ...input, ...ctx, patientEmail: patient?.email }).filter(
+						s => (!fromTime || s.startTime >= fromTime) && (!toTime || s.startTime <= toTime),
+					);
+					return {
+						ok: true as const,
+						slots: toSlotOptions(slots.slice(0, SLOT_LIMIT), doctorsById()),
+						totalFree: slots.length,
+						truncated: slots.length > SLOT_LIMIT,
+					};
 				} catch (err) {
 					if (err instanceof DomainError) return { ok: false as const, error: err.code, message: err.message };
 					throw err;

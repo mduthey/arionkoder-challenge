@@ -128,6 +128,44 @@ describe('POST /api/assistant/chat', () => {
 		expect(toolResult).toContain('suggestions');
 	});
 
+	describe('findAvailableSlots', () => {
+		const search = { doctorId: 1, date: '2026-11-03', durationMinutes: 30 };
+
+		async function searchResult(input: unknown) {
+			const model = setup([toolCallStep('findAvailableSlots', input), textStep({ message: 'Here.', slots: [] })]);
+			await app.inject({
+				method: 'POST',
+				url: '/api/assistant/chat',
+				payload: { messages: [{ role: 'user', content: 'GP on Tuesday' }] },
+			});
+			const toolMessage = model.doGenerateCalls[1]?.prompt.find(m => m.role === 'tool');
+			const part = toolMessage?.content[0];
+			if (part?.type !== 'tool-result' || part.output.type !== 'json') throw new Error('no tool result');
+			return part.output.value as { slots: { startTime: string }[]; totalFree: number; truncated: boolean };
+		}
+
+		it('says when the list was cut short', async () => {
+			const result = await searchResult(search);
+
+			expect(result.slots).toHaveLength(8);
+			expect(result.slots[0]?.startTime).toBe('09:00');
+			expect(result).toMatchObject({ totalFree: 31, truncated: true });
+		});
+
+		it('searches from a requested time', async () => {
+			const result = await searchResult({ ...search, fromTime: '16:00' });
+
+			expect(result.slots.map(s => s.startTime)).toEqual(['16:00', '16:15', '16:30']);
+			expect(result).toMatchObject({ totalFree: 3, truncated: false });
+		});
+
+		it('searches inside a time window', async () => {
+			const result = await searchResult({ ...search, fromTime: '14:00', toTime: '14:30' });
+
+			expect(result.slots.map(s => s.startTime)).toEqual(['14:00', '14:15', '14:30']);
+		});
+	});
+
 	it('drops offered slots that are not actually free', async () => {
 		setup([
 			textStep({
