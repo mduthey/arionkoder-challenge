@@ -1,0 +1,47 @@
+name: clinic-booking
+
+x-backend: &backend
+  image: clinic-booking-backend
+  env_file:
+    - path: .env
+      required: false
+  volumes:
+    - db-data:/data
+
+services:
+  migrate:
+    <<: *backend
+    # The only service that builds the backend image; `api` reuses it.
+    build:
+      context: .
+      dockerfile: backend/Dockerfile
+    command: ["node", "dist/migrate.js"]
+    restart: "no"
+
+  api:
+    <<: *backend
+    pull_policy: never
+    depends_on:
+      migrate:
+        condition: service_completed_successfully
+    healthcheck:
+      test: ["CMD", "node", "-e", "fetch('http://localhost:3000/api/health').then(r => process.exit(r.ok ? 0 : 1), () => process.exit(1))"]
+      interval: 10s
+      timeout: 5s
+      start_period: 10s
+      retries: 3
+    restart: unless-stopped
+
+  web:
+    build:
+      context: .
+      dockerfile: frontend/Dockerfile
+    depends_on:
+      api:
+        condition: service_healthy
+    ports:
+      - "8080:8080"
+    restart: unless-stopped
+
+volumes:
+  db-data:
