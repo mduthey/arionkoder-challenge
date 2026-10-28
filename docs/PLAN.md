@@ -6,8 +6,8 @@ A small, self-contained app for booking medical appointments.
 - **Form-based booking** flow.
 - **Chat assistant** ("dermatologist next Tuesday afternoon"): an LLM uses tools to find real free slots, the user picks
   one, and the assistant books it through the same domain logic the form uses.
-- The whole system starts with `docker compose up` (migrations and seed included). CI runs on push/PR, and container
-  images are published on merge to `main` and on version tags.
+- The whole system starts with `docker compose up` (migrations and seed included). CI runs on PRs and on `main`, and
+  container images are published on version tags.
 
 This document is the shared contract. The work itself is split into specs under [`docs/specs/`](./specs), executed in order.
 
@@ -26,7 +26,7 @@ This document is the shared contract. The work itself is split into specs under 
 | Aliases | `~/*` → `src/*` in both packages | No `../../` imports |
 | Tests | Vitest in both packages; Testing Library + jsdom in the frontend | Critical paths only |
 | Containers | One Dockerfile per package; compose runs a one-shot `migrate` service → `api` → `web` (nginx) | Migrations and seed are explicit, ordered steps |
-| CI/CD | `ci.yml` (lint, typecheck, test, build) on push/PR; `docker.yml` builds images on PR and pushes to **GHCR** on `main` and `v*` tags | GHCR only needs the built-in `GITHUB_TOKEN` |
+| CI/CD | `ci.yml` (lint, typecheck, test, build) on PRs and pushes to `main`; `docker.yml` builds and pushes images to **GHCR** on `v*` tags | GHCR only needs the built-in `GITHUB_TOKEN` |
 | Supply chain | `minimumReleaseAge: 2880` (2 days) in `pnpm-workspace.yaml` | Freshly published (possibly compromised) versions are never installed |
 
 ## Repo layout
@@ -38,9 +38,9 @@ This document is the shared contract. The work itself is split into specs under 
 │  │  ├─ index.ts              # boot: read config, open db, buildApp(), listen
 │  │  ├─ app.ts                # buildApp({ db, config, model, now }) — Fastify + zod type provider, routes under /api, error handler
 │  │  ├─ config.ts             # zod-parsed env
-│  │  ├─ db/                   # schema.ts, client.ts, migrate.ts (migrations + seed), seed.ts
+│  │  ├─ db/                   # schema.ts, client.ts, migrations.ts, seed.ts, migrate.ts (entry: migrations + seed)
 │  │  ├─ domain/               # time.ts, availability.ts, appointments.ts, errors.ts
-│  │  ├─ routes/               # health.ts, doctors.ts, appointments.ts, assistant.ts
+│  │  ├─ routes/               # health.ts, config.ts, doctors.ts, appointments.ts, assistant.ts, schemas.ts
 │  │  └─ ai/                   # assistant.ts, tools.ts, prompt.ts, schemas.ts
 │  ├─ drizzle/                 # generated migrations (committed)
 │  └─ drizzle.config.ts  tsconfig.json  tsdown.config.ts  vitest.config.ts  Dockerfile
@@ -66,7 +66,8 @@ This document is the shared contract. The work itself is split into specs under 
 **Rules.** These live in `domain/appointments.ts`, the single write path for both the form and the assistant.
 1. Duration ∈ {15, 30, 45, 60}; start on a 15-minute boundary; must be in the future.
 2. Inside the doctor's working hours on a weekday, evaluated in `CLINIC_TIMEZONE`. Otherwise **422**.
-3. No overlap with the same doctor's scheduled appointments. Otherwise **409**, with `suggestions` (next free slots).
+3. No overlap with the same doctor's scheduled appointments. Otherwise **409**, with `suggestions` (the next free slots
+   after the requested time, also skipping the patient's own appointments).
 4. No overlap with the same patient's (by email) scheduled appointments with any doctor. Otherwise **409**.
 5. Overlap means `a.start < b.end && a.end > b.start`, so back-to-back appointments are allowed.
 6. The check and the insert run in one `IMMEDIATE` transaction, so concurrent requests can't double-book.
@@ -77,7 +78,8 @@ Responses carry ISO UTC timestamps, which the frontend formats with `Intl` in th
 timezone math lives in `backend/src/domain/time.ts`. Default: `CLINIC_TIMEZONE=America/Argentina/Buenos_Aires`.
 
 **Seed.** Idempotent: skipped if doctors already exist. It creates 4 doctors (General Practice, Dermatology, Cardiology, Pediatrics) and
-about 6 appointments over the next few weekdays, relative to "now".
+about 6 appointments over the next few weekdays, relative to "now". Migrations and seed run from `dist/migrate.js` in
+Docker, and on backend boot outside production (`NODE_ENV !== 'production'`), so `pnpm dev` needs no setup step.
 
 ## API (`/api`)
 
@@ -147,7 +149,7 @@ UI hides the panel.
   - Filtered install, `tsdown` build, then `pnpm --filter=backend --prod deploy` into a slim runtime stage that ships
     `dist/` and `drizzle/`.
   - Runs as a non-root user, with `CMD node dist/index.js`.
-- `frontend/Dockerfile`: a build stage, then `nginx:alpine` serving `dist/`. `nginx.conf` adds the SPA fallback and proxies `/api` to `api:3000`.
+- `frontend/Dockerfile`: a build stage, then `nginxinc/nginx-unprivileged:alpine` (non-root, listens on 8080) serving `dist/`. `nginx.conf` adds the SPA fallback and proxies `/api` to `api:3000`.
 - `docker-compose.yml` uses the volume `db-data:/data` (`DATABASE_URL=/data/app.db`) and three services, started in order:
   - `migrate`: the backend image running `node dist/migrate.js` (migrations + seed), then exits.
   - `api`: starts after `migrate` completes successfully; healthcheck on `/api/health`; optional `.env`.
@@ -155,13 +157,13 @@ UI hides the panel.
 
 ## CI/CD
 
-- **`ci.yml`**, on `push` and `pull_request`:
+- **`ci.yml`**, on `pull_request` and on `push` to `main`:
   - Frozen install, then `biome ci`, typecheck, test and build, on Node 24 with pnpm caching.
-- **`docker.yml`**: on PRs it builds only; on push to `main` and on `v*` tags it publishes to GHCR.
+- **`docker.yml`**: only on `v*` tags, where it builds and publishes to GHCR.
   - Multi-arch without emulation: `linux/arm64` builds on `ubuntu-24.04-arm` and `linux/amd64` on `ubuntu-latest`, in
     parallel, each pushing by digest.
   - A merge step joins them into one manifest list per tag.
-  - Tags: short SHA; `latest` on `main`; `X.Y.Z` and `X.Y` on version tags.
+  - Tags: `X.Y.Z`, `X.Y` and `sha-<short>`; `latest` too, unless it's a pre-release.
   - Details are in [spec 05](./specs/05-release-pipeline.md).
 
 ## Biome config (`biome.jsonc`)
