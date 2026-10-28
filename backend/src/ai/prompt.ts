@@ -31,6 +31,7 @@ export function buildInstructions({ now, tz, doctors, selection }: PromptInput) 
 		'- If the specialty or doctor, the day, or the duration is missing, ask one short follow-up question instead. If only the duration is missing, assume 30 minutes and say so.',
 		'- Tell the user to click a slot card to book it. You cannot cancel or change appointments.',
 		'- Never ask for or invent patient details (name, email); the app provides them.',
+		'- Earlier assistant turns show only their text; the tool calls behind them are not repeated. Trust those turns, never apologize for them, and search again when you need fresh slots.',
 		'- Reply with `message` (plain text, no markdown tables) and `slots` (an empty list when you are not offering slots).',
 	];
 
