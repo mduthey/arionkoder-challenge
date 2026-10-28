@@ -52,11 +52,16 @@ export function buildApp(deps: AppDeps) {
 		return reply.status(500).send({ error: 'internal' });
 	});
 
-	app.register(healthRoutes, { prefix: '/api' });
-	app.register(configRoutes, { prefix: '/api', ...deps });
-	app.register(doctorRoutes, { prefix: '/api', ...deps });
-	app.register(appointmentRoutes, { prefix: '/api', ...deps });
-	app.register(assistantRoutes, { prefix: '/api', ...deps });
+	app.register(
+		async api => {
+			api.register(healthRoutes);
+			api.register(configRoutes, deps);
+			api.register(doctorRoutes, deps);
+			api.register(appointmentRoutes, deps);
+			api.register(assistantRoutes, deps);
+		},
+		{ prefix: '/api' },
+	);
 
 	return app;
 }
