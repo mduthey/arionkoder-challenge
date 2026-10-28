@@ -1,6 +1,7 @@
 import { Alert, AlertDescription, AlertTitle } from '~/components/ui/alert';
 import { Card, CardContent, CardDescription, CardHeader, CardTitle } from '~/components/ui/card';
 import { Skeleton } from '~/components/ui/skeleton';
+import { AssistantPanel } from '~/features/assistant/AssistantPanel';
 import { AppointmentList } from '~/features/booking/AppointmentList';
 import { BookingForm } from '~/features/booking/BookingForm';
 import { useConfig, useDoctors } from '~/lib/queries';
@@ -40,7 +41,26 @@ export default function App() {
 									<BookingForm doctors={doctors.data} tz={config.data.clinicTimezone} />
 								</CardContent>
 							</Card>
-							{/* The assistant panel goes in the right column. */}
+							{config.data.aiEnabled ? (
+								<Card>
+									<CardHeader>
+										<CardTitle>Booking assistant</CardTitle>
+										<CardDescription>Describe what you need and pick one of the suggested slots.</CardDescription>
+									</CardHeader>
+									<CardContent>
+										<AssistantPanel tz={config.data.clinicTimezone} />
+									</CardContent>
+								</Card>
+							) : (
+								<Card className="bg-muted/50 shadow-none">
+									<CardHeader>
+										<CardTitle className="text-muted-foreground">Booking assistant</CardTitle>
+										<CardDescription>
+											Assistant unavailable — set <code className="font-mono">AI_GATEWAY_API_KEY</code> to enable it.
+										</CardDescription>
+									</CardHeader>
+								</Card>
+							)}
 						</div>
 
 						<Card>

@@ -42,7 +42,34 @@ export type ConflictBody = {
 
 export type AppConfig = {
 	clinicTimezone: string;
-	aiEnabled?: boolean;
+	aiEnabled: boolean;
+};
+
+export type ChatMessage = {
+	role: 'user' | 'assistant';
+	content: string;
+};
+
+/** A slot offered by the assistant, in clinic-local date and time. */
+export type SlotOption = {
+	doctorId: number;
+	doctorName: string;
+	specialty: string;
+	date: string;
+	startTime: string;
+	durationMinutes: number;
+};
+
+export type ChatRequest = {
+	messages: ChatMessage[];
+	patient?: { name: string; email: string };
+	selection?: Pick<SlotOption, 'doctorId' | 'date' | 'startTime' | 'durationMinutes'>;
+};
+
+export type ChatResponse = {
+	message: string;
+	slots: SlotOption[];
+	appointment: Appointment | null;
 };
 
 export type CreateAppointmentInput = {
@@ -107,6 +134,9 @@ export const getAppointments = () => apiFetch<Appointment[]>('/appointments');
 
 export const createAppointment = (input: CreateAppointmentInput) =>
 	apiFetch<Appointment>('/appointments', { method: 'POST', body: JSON.stringify(input) });
+
+export const sendChat = (req: ChatRequest) =>
+	apiFetch<ChatResponse>('/assistant/chat', { method: 'POST', body: JSON.stringify(req) });
 
 export const cancelAppointment = (id: number) =>
 	apiFetch<Appointment>(`/appointments/${id}/cancel`, { method: 'POST' });

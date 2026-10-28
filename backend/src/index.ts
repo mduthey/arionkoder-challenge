@@ -13,7 +13,9 @@ if (process.env.NODE_ENV !== 'production') {
 	seed(db, { now: new Date(), tz: config.clinicTimezone });
 }
 
-const app = buildApp({ config, db, now: () => new Date() });
+// Gateway model ids are plain strings; the gateway reads AI_GATEWAY_API_KEY from the environment.
+const model = config.aiGatewayApiKey ? config.aiModel : null;
+const app = buildApp({ config, db, model, now: () => new Date() });
 app.addHook('onClose', async () => db.$client.close());
 
 for (const signal of ['SIGINT', 'SIGTERM'] as const) {

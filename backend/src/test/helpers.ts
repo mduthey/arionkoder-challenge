@@ -1,4 +1,5 @@
 import { resolve } from 'node:path';
+import type { LanguageModel } from 'ai';
 import { buildApp } from '~/app';
 import { loadConfig } from '~/config';
 import { createDb } from '~/db/client';
@@ -26,10 +27,10 @@ export function createTestDb() {
 	return { db, doctors: { gp, cardio } };
 }
 
-export function createTestApp({ now = TEST_NOW }: { now?: Date } = {}) {
+export function createTestApp({ now = TEST_NOW, model = null }: { now?: Date; model?: LanguageModel | null } = {}) {
 	const { db, doctors } = createTestDb();
 	const config = loadConfig({ LOG_LEVEL: 'silent', DATABASE_URL: ':memory:', CLINIC_TIMEZONE: TEST_TZ });
-	const app = buildApp({ config, db, now: () => now });
+	const app = buildApp({ config, db, model, now: () => now });
 	app.addHook('onClose', async () => db.$client.close());
 	return { app, db, doctors };
 }

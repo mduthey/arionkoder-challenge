@@ -23,6 +23,6 @@ describe('GET /api/health', () => {
 
 		const res = await app.inject({ method: 'GET', url: '/api/config' });
 
-		expect(res.json()).toEqual({ clinicTimezone: 'America/Argentina/Buenos_Aires' });
+		expect(res.json()).toEqual({ clinicTimezone: 'America/Argentina/Buenos_Aires', aiEnabled: false });
 	});
 });
