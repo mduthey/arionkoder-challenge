@@ -1,4 +1,4 @@
-import { useForm, useStore } from '@tanstack/react-form';
+import { useForm, useSelector } from '@tanstack/react-form';
 import { useMemo, useRef, useState } from 'react';
 import { toast } from 'sonner';
 import { z } from 'zod';
@@ -84,10 +84,10 @@ export function BookingForm({ doctors, tz }: BookingFormProps) {
 		},
 	});
 
-	const doctorId = useStore(form.store, s => s.values.doctorId);
-	const date = useStore(form.store, s => s.values.date);
-	const durationMinutes = useStore(form.store, s => s.values.durationMinutes);
-	const startTime = useStore(form.store, s => s.values.startTime);
+	const doctorId = useSelector(form.store, s => s.values.doctorId);
+	const date = useSelector(form.store, s => s.values.date);
+	const durationMinutes = useSelector(form.store, s => s.values.durationMinutes);
+	const startTime = useSelector(form.store, s => s.values.startTime);
 	const doctorNames = new Map(doctors.map(d => [d.id, d.name]));
 
 	function pickSuggestion(slot: Slot) {

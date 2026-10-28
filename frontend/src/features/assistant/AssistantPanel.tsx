@@ -1,4 +1,4 @@
-import { useForm, useStore } from '@tanstack/react-form';
+import { useForm, useSelector } from '@tanstack/react-form';
 import { CalendarCheck, SendHorizontal } from 'lucide-react';
 import { useEffect, useRef, useState } from 'react';
 import { toast } from 'sonner';
@@ -46,7 +46,7 @@ export function AssistantPanel({ tz }: { tz: string }) {
 		defaultValues: { patientName: '', patientEmail: '' },
 		validators: { onChange: patientSchema },
 	});
-	const patientValues = useStore(form.store, s => s.values);
+	const patientValues = useSelector(form.store, s => s.values);
 	const patient = patientSchema.safeParse(patientValues);
 
 	// biome-ignore lint/correctness/useExhaustiveDependencies: scroll whenever a message or the typing indicator appears
