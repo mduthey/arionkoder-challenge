@@ -6,13 +6,22 @@ import {
 	type ZodTypeProvider,
 } from 'fastify-type-provider-zod';
 import type { Config } from '~/config';
+import type { Db } from '~/db/client';
+import { DomainError } from '~/domain/errors';
+import { appointmentRoutes } from '~/routes/appointments';
+import { configRoutes } from '~/routes/config';
+import { doctorRoutes } from '~/routes/doctors';
 import { healthRoutes } from '~/routes/health';
 
 export type AppDeps = {
 	config: Config;
+	db: Db;
+	/** Injectable clock so tests are deterministic. */
+	now: () => Date;
 };
 
-export function buildApp({ config }: AppDeps) {
+export function buildApp(deps: AppDeps) {
+	const { config } = deps;
 	const app = Fastify({ logger: { level: config.logLevel } }).withTypeProvider<ZodTypeProvider>();
 
 	app.setValidatorCompiler(validatorCompiler);
@@ -21,6 +30,9 @@ export function buildApp({ config }: AppDeps) {
 	app.setErrorHandler((err, request, reply) => {
 		if (hasZodFastifySchemaValidationErrors(err)) {
 			return reply.status(400).send({ error: 'validation', issues: err.validation });
+		}
+		if (err instanceof DomainError) {
+			return reply.status(err.status).send({ error: err.code, message: err.message, ...err.details });
 		}
 		// Fastify's own client errors (malformed JSON, oversized body, …) keep their status.
 		if (isClientError(err)) {
@@ -31,6 +43,9 @@ export function buildApp({ config }: AppDeps) {
 	});
 
 	app.register(healthRoutes, { prefix: '/api' });
+	app.register(configRoutes, { prefix: '/api', ...deps });
+	app.register(doctorRoutes, { prefix: '/api', ...deps });
+	app.register(appointmentRoutes, { prefix: '/api', ...deps });
 
 	return app;
 }
