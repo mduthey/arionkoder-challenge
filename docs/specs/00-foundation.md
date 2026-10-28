@@ -83,28 +83,35 @@ DB, domain logic, real UI, Docker, AI, release workflow.
 - `src/app.ts`: `buildApp(deps: AppDeps)`:
   - `AppDeps = { config: Config }` for now; later specs add `db`, `model`, `now`.
   - Creates `Fastify({ logger })` with the type provider and both compilers.
-  - Registers the error handler: zod validation → 400 `{ error: 'validation', issues }`; anything else → 500 `{ error: 'internal' }`, logged.
+  - Registers the error handler: zod validation → 400 `{ error: 'validation', issues }`; Fastify's own 4xx errors
+    (malformed JSON, oversized body) keep their status as `{ error: 'bad_request', message }`; anything else → 500
+    `{ error: 'internal' }`, logged.
   - Registers `routes/health.ts` under prefix `/api`.
 - `src/routes/health.ts`: `GET /health` → `{ ok: true }`, with a zod response schema.
 - `src/index.ts`: `loadConfig()`, `buildApp()`, then `listen({ port, host })`. Close the app cleanly on `SIGINT` and `SIGTERM`.
 - `src/app.test.ts`: `inject` `GET /api/health` → 200 `{ ok: true }`; `app.close()` in `afterEach`.
-- `tsdown.config.ts`: `defineConfig({ entry: { index: 'src/index.ts' }, platform: 'node', format: 'esm' })`. Spec 01 adds
+- `tsdown.config.ts`: `defineConfig({ entry: { index: 'src/index.ts' }, platform: 'node', format: 'esm', fixedExtension: false })`
+  (`fixedExtension: false` makes the output `index.js` instead of `index.mjs`). Spec 01 adds
   `migrate`. Confirm the `~` alias is resolved in `dist/`: `grep -r "~/" dist` must find nothing.
 - `vitest.config.ts`: `resolve: { tsconfigPaths: true }`, falling back to `alias: { '~': fileURLToPath(new URL('./src', import.meta.url)) }`;
   `test: { environment: 'node' }`.
 
 ### 3. Frontend (`frontend/`)
 
-- Scaffold with `pnpm create vite@latest frontend --template react-ts`, non-interactive (check `--help` for the flag).
-  - Delete ESLint (config file and devDeps) and the demo assets/CSS.
+- Scaffold with `pnpm create vite@latest frontend --template react-ts --no-interactive --no-immediate`.
+  - Delete the template's linter (current create-vite ships Oxlint: `.oxlintrc.json` + the `oxlint` devDep), its
+    `.gitignore`/README and the demo assets/CSS.
+  - Align `typescript` with the backend (TS 7) and turn on `strict` in `tsconfig.app.json`/`tsconfig.node.json`.
   - Rename the package to `"frontend"` and keep `"type": "module"`.
 - Tailwind: `pnpm add tailwindcss @tailwindcss/vite`. `src/index.css` starts with `@import "tailwindcss";`.
 - Paths: add `"paths": { "~/*": ["./src/*"] }` to **both** `tsconfig.json` and `tsconfig.app.json`, without `baseUrl`.
 - `vite.config.ts`: plugins `react()` and `tailwindcss()`; `resolve: { tsconfigPaths: true }`;
   `server.proxy: { '/api': 'http://localhost:3000' }`.
-- shadcn: `pnpm dlx shadcn@latest init`, Vite template, neutral base color, CSS variables on (non-interactive flags per `--help`).
+- shadcn: `pnpm dlx shadcn@latest init -t vite -b radix -p nova --no-monorepo --css-variables --no-rtl -y` (the Nova
+  preset uses the neutral base color). It also adds `button` and `src/lib/utils.ts`, which re-exports `cn` from
+  shadcn's `cn` package (replaces clsx + tailwind-merge).
   - Verify that `components.json` aliases are `~/components`, `~/components/ui`, `~/lib`, `~/lib/utils` and `~/hooks`; fix them by hand if needed.
-  - `shadcn add button`.
+  - `shadcn add button` (already added by `init` with the Nova preset).
   - Run `pnpm lint:fix`.
 - `src/App.tsx`: minimal page with a "Clinic Booking" heading and a shadcn `Button`, which proves Tailwind, shadcn and the alias work.
 - Tests: devDeps `vitest`, `jsdom`, `@testing-library/react`, `@testing-library/jest-dom`, `@testing-library/user-event`.
