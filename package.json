@@ -1,0 +1,20 @@
+{
+	"name": "clinic-booking",
+	"private": true,
+	"type": "module",
+	"packageManager": "pnpm@12.16.1",
+	"engines": {
+		"node": ">=24"
+	},
+	"scripts": {
+		"dev": "pnpm -r --parallel dev",
+		"lint": "biome check .",
+		"lint:fix": "biome check --write .",
+		"typecheck": "pnpm -r typecheck",
+		"test": "pnpm -r test",
+		"build": "pnpm -r build"
+	},
+	"devDependencies": {
+		"@biomejs/biome": "2.6.3"
+	}
+}
