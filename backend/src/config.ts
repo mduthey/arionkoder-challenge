@@ -10,6 +10,12 @@ const configSchema = z.object({
 	CLINIC_TIMEZONE: z.string().min(1).default('America/Argentina/Buenos_Aires').refine(isValidTimeZone, {
 		message: 'Unknown IANA time zone',
 	}),
+	// An empty value (as in `.env.example`) means "no assistant".
+	AI_GATEWAY_API_KEY: z
+		.string()
+		.optional()
+		.transform(v => v || undefined),
+	AI_MODEL: z.string().min(1).default('anthropic/claude-haiku-5.5'),
 });
 
 export type Config = {
@@ -19,6 +25,8 @@ export type Config = {
 	databaseUrl: string;
 	migrationsDir: string;
 	clinicTimezone: string;
+	aiGatewayApiKey: string | undefined;
+	aiModel: string;
 };
 
 export function loadConfig(env: NodeJS.ProcessEnv = process.env): Config {
@@ -30,6 +38,8 @@ export function loadConfig(env: NodeJS.ProcessEnv = process.env): Config {
 		databaseUrl: parsed.DATABASE_URL,
 		migrationsDir: parsed.MIGRATIONS_DIR ?? resolve(process.cwd(), 'drizzle'),
 		clinicTimezone: parsed.CLINIC_TIMEZONE,
+		aiGatewayApiKey: parsed.AI_GATEWAY_API_KEY,
+		aiModel: parsed.AI_MODEL,
 	};
 }
 

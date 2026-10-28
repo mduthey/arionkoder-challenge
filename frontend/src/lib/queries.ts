@@ -1,5 +1,6 @@
 import { useMutation, useQuery, useQueryClient } from '@tanstack/react-query';
 import {
+	type ChatRequest,
 	type CreateAppointmentInput,
 	cancelAppointment,
 	createAppointment,
@@ -7,6 +8,7 @@ import {
 	getAvailability,
 	getConfig,
 	getDoctors,
+	sendChat,
 } from '~/lib/api';
 
 export const queryKeys = {
@@ -55,4 +57,12 @@ export function useCreateAppointment() {
 export function useCancelAppointment() {
 	const onSuccess = useInvalidateBookings();
 	return useMutation({ mutationFn: (id: number) => cancelAppointment(id), onSuccess });
+}
+
+export function useSendChat() {
+	const invalidate = useInvalidateBookings();
+	return useMutation({
+		mutationFn: (req: ChatRequest) => sendChat(req),
+		onSuccess: res => (res.appointment ? invalidate() : undefined),
+	});
 }

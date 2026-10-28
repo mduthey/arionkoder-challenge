@@ -13,7 +13,7 @@ describe('App', () => {
 			'fetch',
 			vi.fn(
 				fetchRoutes(url => {
-					if (url.pathname === '/api/config') return json(200, { clinicTimezone: 'UTC' });
+					if (url.pathname === '/api/config') return json(200, { clinicTimezone: 'UTC', aiEnabled: false });
 					if (url.pathname === '/api/doctors') return json(200, []);
 					if (url.pathname === '/api/appointments') return json(200, []);
 				}),
@@ -24,5 +24,6 @@ describe('App', () => {
 		expect(screen.getByRole('heading', { name: 'Clinic Booking' })).toBeInTheDocument();
 		expect(await screen.findByText('Book an appointment')).toBeInTheDocument();
 		expect(await screen.findByText('No upcoming appointments.')).toBeInTheDocument();
+		expect(screen.getByText(/Assistant unavailable/)).toBeInTheDocument();
 	});
 });
